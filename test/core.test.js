@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
@@ -6,6 +9,7 @@ import {
   cleanProvName,
   detectFill,
   detectLevel,
+  fetchAndCache,
   gdCleanZoneName,
   gdDetectFill,
   gdMap,
@@ -132,4 +136,63 @@ test("mapData joins categorical fills using composite municipality codes", async
 
   assert.equal(result.fillVar, "region");
   assert.equal(santiago.properties.region, "Cibao Norte");
+});
+
+test("mapSvg supports manual categorical colors", async () => {
+  const svg = await mapSvg([
+    { municipio: "Santiago", alerta: "verde" },
+    { municipio: "La Vega", alerta: "amarilla" }
+  ], {
+    level: "municipalities",
+    name: "municipio",
+    key: "TOPONIMIA",
+    fill: "alerta",
+    colors: {
+      verde: "#25a55b",
+      amarilla: "#ffd23f",
+      roja: "#d72638"
+    },
+    domain: ["verde", "amarilla", "roja"]
+  });
+
+  assert.match(svg, /fill="#25a55b"/);
+  assert.match(svg, /fill="#ffd23f"/);
+  assert.match(svg, /fill="#d72638"/);
+  assert.match(svg, />roja<\/text>/);
+});
+
+test("Node cache uses filesystem without touching localStorage", async () => {
+  const cacheDir = await mkdtemp(join(tmpdir(), "geodom-cache-"));
+  const previousCacheDir = process.env.GEODOM_CACHE_DIR;
+  const previousDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  let localStorageAccessed = false;
+
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    get() {
+      localStorageAccessed = true;
+      return {
+        getItem: () => null,
+        setItem: () => {}
+      };
+    }
+  });
+
+  process.env.GEODOM_CACHE_DIR = cacheDir;
+  try {
+    await fetchAndCache("RD_PROV", { forceDownload: true });
+    assert.equal(localStorageAccessed, false);
+  } finally {
+    if (previousDescriptor) {
+      Object.defineProperty(globalThis, "localStorage", previousDescriptor);
+    } else {
+      delete globalThis.localStorage;
+    }
+    if (previousCacheDir === undefined) {
+      delete process.env.GEODOM_CACHE_DIR;
+    } else {
+      process.env.GEODOM_CACHE_DIR = previousCacheDir;
+    }
+    await rm(cacheDir, { recursive: true, force: true });
+  }
 });

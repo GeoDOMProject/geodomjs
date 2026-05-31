@@ -104,43 +104,45 @@ function cacheKey(kind, id) {
 }
 
 async function readPersistentCache(key) {
-  if (typeof localStorage !== "undefined" && typeof localStorage.getItem === "function") {
-    const value = localStorage.getItem(`geodom:${key}`);
+  if (isNode()) {
+    try {
+      const fsModule = "node:fs/promises";
+      const pathModule = "node:path";
+      const { readFile } = await import(/* @vite-ignore */ fsModule);
+      const { join } = await import(/* @vite-ignore */ pathModule);
+      const file = join(process.env.GEODOM_CACHE_DIR || join(process.cwd(), `.${CACHE_DIR_NAME}`), `${encodeURIComponent(key)}.json`);
+      return JSON.parse(await readFile(file, "utf8"));
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof globalThis.localStorage !== "undefined" && typeof globalThis.localStorage.getItem === "function") {
+    const value = globalThis.localStorage.getItem(`geodom:${key}`);
     return value ? JSON.parse(value) : null;
   }
 
-  if (!isNode()) return null;
-
-  try {
-    const fsModule = "node:fs/promises";
-    const pathModule = "node:path";
-    const { readFile } = await import(/* @vite-ignore */ fsModule);
-    const { join } = await import(/* @vite-ignore */ pathModule);
-    const file = join(process.env.GEODOM_CACHE_DIR || join(process.cwd(), `.${CACHE_DIR_NAME}`), `${encodeURIComponent(key)}.json`);
-    return JSON.parse(await readFile(file, "utf8"));
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 async function writePersistentCache(key, value) {
-  if (typeof localStorage !== "undefined" && typeof localStorage.setItem === "function") {
-    localStorage.setItem(`geodom:${key}`, JSON.stringify(value));
+  if (isNode()) {
+    try {
+      const fsModule = "node:fs/promises";
+      const pathModule = "node:path";
+      const { mkdir, writeFile } = await import(/* @vite-ignore */ fsModule);
+      const { join } = await import(/* @vite-ignore */ pathModule);
+      const dir = process.env.GEODOM_CACHE_DIR || join(process.cwd(), `.${CACHE_DIR_NAME}`);
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(dir, `${encodeURIComponent(key)}.json`), JSON.stringify(value), "utf8");
+    } catch {
+      // Cache is opportunistic; failed writes must not break data access.
+    }
     return;
   }
 
-  if (!isNode()) return;
-
-  try {
-    const fsModule = "node:fs/promises";
-    const pathModule = "node:path";
-    const { mkdir, writeFile } = await import(/* @vite-ignore */ fsModule);
-    const { join } = await import(/* @vite-ignore */ pathModule);
-    const dir = process.env.GEODOM_CACHE_DIR || join(process.cwd(), `.${CACHE_DIR_NAME}`);
-    await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, `${encodeURIComponent(key)}.json`), JSON.stringify(value), "utf8");
-  } catch {
-    // Cache is opportunistic; failed writes must not break data access.
+  if (typeof globalThis.localStorage !== "undefined" && typeof globalThis.localStorage.setItem === "function") {
+    globalThis.localStorage.setItem(`geodom:${key}`, JSON.stringify(value));
   }
 }
 
@@ -1028,6 +1030,8 @@ export async function mapSvg(data, options = {}) {
     labelColor = "#202020",
     labelHalo = "#ffffff",
     legend = true,
+    colors = null,
+    domain = null,
     background = "#ffffff",
     stroke = "#ffffff",
     strokeWidth = 1.15,
@@ -1041,8 +1045,12 @@ export async function mapSvg(data, options = {}) {
     .filter((value) => !isMissing(value) && String(value).trim() !== "");
   const numericFill = rawValues.length > 0 && rawValues.every((value) => Number.isFinite(Number(value)));
   const values = numericFill ? rawValues.map(Number) : [];
-  const categories = numericFill ? [] : [...new Set(rawValues.map((value) => String(value)))];
-  const categoryColors = new Map(categories.map((category, index) => [category, categoricalColor(index)]));
+  const categories = numericFill ? [] : categoryDomain(rawValues, domain);
+  const customColors = normalizeColorMap(colors);
+  const categoryColors = new Map(categories.map((category, index) => [
+    category,
+    customColors.get(category) || customColors.get(normalizeName(category)) || categoricalColor(index)
+  ]));
   const min = values.length ? Math.min(...values) : null;
   const max = values.length ? Math.max(...values) : null;
   const bounds = featureBounds(features);
@@ -1261,6 +1269,35 @@ function viridisColor(t) {
 function categoricalColor(index) {
   if (index < CATEGORICAL_COLORS.length) return CATEGORICAL_COLORS[index];
   return viridisColor((index % 13) / 12);
+}
+
+function normalizeColorMap(colors) {
+  if (!colors) return new Map();
+  const entries = colors instanceof Map ? colors.entries() : Object.entries(colors);
+  return new Map(
+    [...entries]
+      .filter(([key, value]) => key !== undefined && key !== null && value !== undefined && value !== null)
+      .map(([key, value]) => [String(key), String(value)])
+  );
+}
+
+function categoryDomain(rawValues, domain) {
+  const observed = [...new Set(rawValues.map((value) => String(value)))];
+  if (!domain) return observed;
+  const ordered = Array.isArray(domain) ? domain : [...domain];
+  const result = [];
+  const seen = new Set();
+  for (const value of ordered) {
+    const category = String(value);
+    if (!seen.has(category)) {
+      result.push(category);
+      seen.add(category);
+    }
+  }
+  for (const category of observed) {
+    if (!seen.has(category)) result.push(category);
+  }
+  return result;
 }
 
 function fillColor(value, { numericFill, min, max, categoryColors, missing }) {
