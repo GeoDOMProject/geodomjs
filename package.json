@@ -1,0 +1,41 @@
+{
+  "name": "@geodom/core",
+  "version": "0.1.0",
+  "description": "Acceso a datos geoespaciales estandarizados de República Dominicana para JavaScript.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GeoDOMProject/geodomjs.git"
+  },
+  "homepage": "https://github.com/GeoDOMProject/geodomjs#readme",
+  "bugs": {
+    "url": "https://github.com/GeoDOMProject/geodomjs/issues"
+  },
+  "keywords": [
+    "gis",
+    "geospatial",
+    "dominican-republic",
+    "geodata",
+    "maps"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
