@@ -1,6 +1,6 @@
 {
   "name": "@geodom/core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Acceso a datos geoespaciales estandarizados de República Dominicana para JavaScript.",
   "type": "module",
   "main": "./src/index.js",
@@ -9,15 +9,26 @@
     ".": {
       "types": "./src/index.d.ts",
       "import": "./src/index.js"
+    },
+    "./interactive": {
+      "types": "./src/interactive.d.ts",
+      "import": "./src/interactive.js"
+    },
+    "./viewer": {
+      "types": "./src/viewer.d.ts",
+      "import": "./dist/interactive-viewer.js"
     }
   },
   "files": [
     "src",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "dist"
   ],
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "build": "node scripts/build-interactive.mjs",
+    "prepack": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -37,5 +48,13 @@
   "license": "MIT",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "proj4": "2.22.0",
+    "topojson-client": "3.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "leaflet": "1.9.4"
   }
 }
