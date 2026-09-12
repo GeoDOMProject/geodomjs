@@ -1,3 +1,9 @@
+# 1.1.1 — 2026-09-12
+
+- Corrige el enlace de BP_CODE cuando la geometría de barrios/parajes usa SECC.
+- Validación con la capa real completa de 12,612 territorios y una medición enlazada.
+- Se conservan las etiquetas y archivos ya publicados de 1.1.0.
+
 # 1.1.0 — 2026-09-12
 
 - Mapas interactivos con navegación, búsqueda, selección, atributos y leyenda.

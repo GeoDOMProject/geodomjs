@@ -63,7 +63,7 @@ export function mount(root, payload) {
   workspace.append(canvas, sidebar);
   const footer = el('footer', null, 'gd-footer');
   if (options.caption) footer.append(el('p', options.caption));
-  footer.append(el('span', 'GeoDOM 1.1.0 · Los límites sin mediciones se muestran como “Sin datos”.'));
+  footer.append(el('span', `GeoDOM ${payload.version || '1.1.0'} · Los límites sin mediciones se muestran como “Sin datos”.`));
   root.replaceChildren(header, controls, workspace, footer);
   const map = L.map(canvas, { preferCanvas: true, zoomControl: false, scrollWheelZoom: false, minZoom: 5, maxZoom: 18, zoomSnap: .25 });
   map.setView([18.8, -70.3], 7);

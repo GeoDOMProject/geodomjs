@@ -326,7 +326,8 @@ function joinValueForKey(row, key) {
   }
   if (upper === "BP_CODE") {
     const direct = firstValue(row, ["BP_CODE"]);
-    return !isMissing(direct) ? codeValue(direct, "BP_CODE") : composeId(row, ["PROV", "MUN", "DM", "SEC", "BP"]);
+    const secCol = "SEC" in row ? "SEC" : ("SECC" in row ? "SECC" : "SEC");
+    return !isMissing(direct) ? codeValue(direct, "BP_CODE") : composeId(row, ["PROV", "MUN", "DM", secCol, "BP"]);
   }
   return row[key];
 }

@@ -15,6 +15,7 @@ const ring = [[-70,18],[-69,18],[-69,19],[-70,19],[-70,18]];
 const feature = (properties, coordinates = ring) => ({ type:'Feature', properties, geometry:{type:'Polygon',coordinates:[coordinates]} });
 const collection = features => ({type:'FeatureCollection',features});
 const fixtures = {
+  RD_BPARAJES: collection([feature({PROV:'05',MUN:'04',DM:'01',SECC:'02',BP:'001',TOPONIMIA:'Paraje con SECC'}),feature({PROV:'05',MUN:'04',DM:'01',SEC:'03',BP:'003',TOPONIMIA:'Paraje con SEC'})]),
   RD_PROV: collection([feature({PROV:'01',TOPONIMIA:'Ázua'}),feature({PROV:'02',TOPONIMIA:'Bahoruco'})]),
   RD_MUN158: collection([feature({PROV:'01',MUN:'01',TOPONIMIA:'Municipio uno'},[[500000,2100000],[501000,2100000],[501000,2101000],[500000,2100000]]),feature({PROV:'02',MUN:'01',TOPONIMIA:'Municipio dos'},[[502000,2100000],[503000,2100000],[503000,2101000],[502000,2100000]])])
 };
@@ -81,4 +82,9 @@ test('zero remains measured; missing and categorical values use separate legend 
 });
 test('interactive maps retain duplicate join rejection', async () => {
   await assert.rejects(interactiveData([{PROV:'01',value:1},{PROV:'01',value:2}],{level:'provinces',name:'PROV',key:'PROV',fill:'value'}),/duplicadas/);
+});
+
+test('barrio joins preserve measurements with either SEC or SECC source fields', async () => {
+  const payload = await interactiveData([{BP_CODE:'05040102001',value:0},{BP_CODE:'05040103003',value:12}],{level:'bparajes',name:'BP_CODE',key:'BP_CODE',fill:'value',context:false});
+  assert.deepEqual(payload.layers[0].geojson.features.map(f=>f.properties.value),[0,12]);
 });

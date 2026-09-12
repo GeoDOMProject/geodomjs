@@ -5,7 +5,7 @@ Paquete JavaScript para usar datos y utilidades de GeoDOM en Node.js y navegador
 ## Instalación
 
 ```bash
-npm install https://github.com/GeoDOMProject/geodomjs/releases/download/v1.1.0/geodom-core-1.1.0.tgz
+npm install https://github.com/GeoDOMProject/geodomjs/releases/download/v1.1.1/geodom-core-1.1.1.tgz
 ```
 
 ## Uso rápido
@@ -58,7 +58,7 @@ npm test
 
 MIT
 
-## Mapas interactivos (1.1.0)
+## Mapas interactivos (1.1.1)
 
 ```js
 import { gdMapInteractive, mountInteractiveMap } from '@geodom/core/interactive';
