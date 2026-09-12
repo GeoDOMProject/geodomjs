@@ -106,6 +106,20 @@ test("gdMap is available as the SVG renderer alias", () => {
   assert.equal(gdMap, mapSvg);
 });
 
+test("mapData rejects duplicate territorial rows", async () => {
+  await assert.rejects(mapData([{ PROV: "01", value: 1 }, { PROV: "01", value: 2 }], { level: "provinces", name: "PROV", key: "PROV", fill: "value" }), /duplicadas/);
+});
+
+test("mapData rejects local municipality codes repeated across provinces", async () => {
+  await assert.rejects(mapData([{ MUN: "01", value: 1 }], { level: "municipalities", name: "MUN", key: "MUN", fill: "value" }), /ambigua/);
+});
+
+test("mapData tracks a fill column that collides with geometry attributes", async () => {
+  const result = await mapData([{ PROV: "01", TOPONIMIA: 123 }], { level: "provinces", name: "PROV", key: "PROV", fill: "TOPONIMIA" });
+  assert.equal(result.fillVar, "TOPONIMIA_data");
+  assert.equal(Object.values(result.data.objects)[0].geometries[0].properties.TOPONIMIA_data, 123);
+});
+
 test("detectLevel recognizes composite municipality code columns", async () => {
   const data = [
     { MUN_CODE: "2501", group: "Cibao Norte" },

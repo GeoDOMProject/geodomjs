@@ -117,11 +117,13 @@ async function readPersistentCache(key) {
     }
   }
 
+  try {
   if (typeof globalThis.localStorage !== "undefined" && typeof globalThis.localStorage.getItem === "function") {
     const value = globalThis.localStorage.getItem(`geodom:${key}`);
     return value ? JSON.parse(value) : null;
   }
 
+  } catch { /* Unavailable or corrupt browser cache must not block downloads. */ }
   return null;
 }
 
@@ -141,9 +143,11 @@ async function writePersistentCache(key, value) {
     return;
   }
 
+  try {
   if (typeof globalThis.localStorage !== "undefined" && typeof globalThis.localStorage.setItem === "function") {
     globalThis.localStorage.setItem(`geodom:${key}`, JSON.stringify(value));
   }
+  } catch { /* Storage quotas and privacy settings must not break maps. */ }
 }
 
 async function fetchJson(url) {
@@ -937,15 +941,21 @@ export async function mapData(data, { fill = null, level = null, name = null, ke
   const fillVar = fill || detectFill(dataRows, { exclude: [info.name] });
   const geo = await geoForLevel(info.level);
   const geoRows = rows(geo);
+  if (!dataRows.length || !dataRows.some((row) => fillVar in row)) throw new Error("La variable de color no existe en los datos.");
   const dataNames = info.key === "TOPONIMIA"
     ? await cleanForLevel(info.level, dataRows.map((row) => row[info.name]), { tolerance: 0.5, onError: "na" })
     : dataRows.map((row) => joinValueForKey(row, info.name));
   const geoNames = info.key === "TOPONIMIA"
     ? await cleanForLevel(info.level, geoRows.map((row) => row[info.key]), { tolerance: 0.5, onError: "omit" })
     : geoRows.map((row) => joinValueForKey(row, info.key));
-  const dataByKey = new Map(dataRows.map((row, index) => [normalizedJoinKey(dataNames[index]), row]));
-  const merged = mergeIntoGeoData(geo, [...geoNames], dataByKey, fillVar, Object.keys(dataRows[0] || {}));
-  return { data: merged, fillVar, geoLevel: info.level, join: info };
+  const validKeys = dataNames.map(normalizedJoinKey).filter(Boolean);
+  if (new Set(validKeys).size !== validKeys.length) throw new Error("Hay filas duplicadas para la misma unidad territorial. Agrega los datos antes de crear el mapa.");
+  const geoKeys = geoNames.map(normalizedJoinKey);
+  if (validKeys.some((value) => geoKeys.filter((item) => item === value).length > 1)) throw new Error("La clave territorial es ambigua. Usa un codigo compuesto unico, como MUN_CODE o BP_CODE.");
+  const dataByKey = new Map(dataRows.map((row, index) => [normalizedJoinKey(dataNames[index]), row]).filter(([key]) => key));
+  const outputFill = geoRows.some((row) => fillVar in row) ? `${fillVar}_data` : fillVar;
+  const merged = mergeIntoGeoData(geo, [...geoNames], dataByKey, outputFill, Object.keys(dataRows[0] || {}));
+  return { data: merged, fillVar: outputFill, geoLevel: info.level, join: info };
 }
 
 export async function addParentCols(data, { levels = null, level = null, name = null, key = null, clean = true, tolerance = 0.25, onError = "na" } = {}) {

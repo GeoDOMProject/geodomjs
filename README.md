@@ -5,7 +5,7 @@ Paquete JavaScript para usar datos y utilidades de GeoDOM en Node.js y navegador
 ## Instalación
 
 ```bash
-npm install @geodom/core
+npm install https://github.com/GeoDOMProject/geodomjs/releases/download/v1.0.0/geodom-core-1.0.0.tgz
 ```
 
 ## Uso rápido
