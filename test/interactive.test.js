@@ -80,6 +80,28 @@ test('zero remains measured; missing and categorical values use separate legend 
   assert.equal(categorical.numeric,false); assert.deepEqual(categorical.domain,['A','B']);
   assert.notEqual(categorical.color('A'),categorical.color('B'));
 });
+test('continuous and discrete palettes are honored by the interactive scale', () => {
+  const numericLayer={fillVar:'value',geojson:collection([feature({value:0}),feature({value:10}),feature({value:null})])};
+  const continuous=colorScale(numericLayer,{palette:['#000000','#ffffff'],missing:'#123456'});
+  assert.equal(continuous.color(0),'#000000');
+  assert.equal(continuous.color(10),'#ffffff');
+  assert.equal(continuous.color(5),'#808080');
+  assert.equal(continuous.color(null),'#123456');
+  assert.equal(continuous.gradient,'#000000,#ffffff');
+
+  const discreteLayer={fillVar:'value',geojson:collection([feature({value:'B'}),feature({value:'A'})])};
+  const discrete=colorScale(discreteLayer,{palette:['#ff0000','#00ff00'],domain:['A','B']});
+  assert.deepEqual(discrete.domain,['A','B']);
+  assert.equal(discrete.color('A'),'#ff0000');
+  assert.equal(discrete.color('B'),'#00ff00');
+});
+test('interactive payload retains palette options for the portable viewer', async () => {
+  const palette=['#112233','#ddeeff'];
+  const payload=await interactiveData([{PROV:'01',value:1}],{level:'provinces',name:'PROV',key:'PROV',fill:'value',palette,missing:'#abcdef',backgroundColor:'#123456',context:false});
+  assert.deepEqual(payload.options.palette,palette);
+  assert.equal(payload.options.missing,'#abcdef');
+  assert.equal(payload.options.backgroundColor,'#123456');
+});
 test('interactive maps retain duplicate join rejection', async () => {
   await assert.rejects(interactiveData([{PROV:'01',value:1},{PROV:'01',value:2}],{level:'provinces',name:'PROV',key:'PROV',fill:'value'}),/duplicadas/);
 });

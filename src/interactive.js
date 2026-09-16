@@ -2,6 +2,7 @@ import proj4 from 'proj4';
 import { feature as topoFeature } from 'topojson-client';
 import { mapData, provinces, municipalities } from './index.js';
 import { scriptJson } from './interactive-model.js';
+import { normalizeHexColor, resolvePalette } from './palettes.js';
 import { runtimeJs, runtimeCss } from './runtime-assets.js';
 
 const UTM19 = '+proj=utm +zone=19 +datum=WGS84 +units=m +no_defs';
@@ -41,9 +42,19 @@ export async function interactiveData(data, options = {}) {
       if (id !== primary.id) layers.push({ id, fillVar: null, measured: false, geojson: toGeoJSON(await getter(), { crs }) });
     }
   }
-  return { version: '1.1.1', primary: primary.id, layers, options: {
+  const fillValues = primary.geojson.features
+    .map(feature => feature.properties[primary.fillVar])
+    .filter(value => value != null && String(value).trim() !== '');
+  const numericFill = fillValues.length > 0 && fillValues.every(value => typeof value !== 'boolean' && Number.isFinite(Number(value)));
+  const colorEntries = options.colors instanceof Map ? [...options.colors.entries()] : Object.entries(options.colors || {});
+  const paletteColors = resolvePalette(options.palette, { numeric: numericFill });
+  const categoryColors = colorEntries.length ? Object.fromEntries(colorEntries.map(([category, color]) => [String(category), normalizeHexColor(color, `El color de ${category}`)])) : null;
+  return { version: '1.2.0', primary: primary.id, layers, options: {
     title: options.title || 'Mapa GeoDOM', subtitle: options.subtitle || '', caption: options.caption || '', labels: options.labels || false,
-    background: options.background === 'osm' ? 'osm' : 'none'
+    background: options.background === 'osm' ? 'osm' : 'none', palette: paletteColors,
+    backgroundColor: normalizeHexColor(options.backgroundColor || '#eef4f1', 'El color de fondo'),
+    colors: categoryColors, domain: options.domain ? [...options.domain].map(String) : null,
+    missing: normalizeHexColor(options.missing || '#cbd5e1', 'El color sin datos')
   } };
 }
 
@@ -55,7 +66,7 @@ export async function interactiveDocument(payload) {
   let binary = '';
   for (let i = 0; i < compressed.length; i += 8192) binary += String.fromCharCode(...compressed.subarray(i, i + 8192));
   const encoded = btoa(binary);
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="generator" content="GeoDOM 1.1.1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: https://tile.openstreetmap.org; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>${title}</title><style>${runtimeCss}</style></head><body><main id="geodom-interactive">Abriendo mapa...</main><script id="geodom-payload" type="application/octet-stream" data-encoding="gzip">${encoded}</script><script>${runtimeJs}\nGeoDOMInteractive.boot();</script></body></html>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="generator" content="GeoDOM 1.2.0"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: https://tile.openstreetmap.org; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>${title}</title><style>${runtimeCss}</style></head><body><main id="geodom-interactive">Abriendo mapa...</main><script id="geodom-payload" type="application/octet-stream" data-encoding="gzip">${encoded}</script><script>${runtimeJs}\nGeoDOMInteractive.boot();</script></body></html>`;
 }
 export async function mapInteractive(data, options = {}) {
   return interactiveDocument(await interactiveData(data, options));

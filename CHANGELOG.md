@@ -1,3 +1,10 @@
+# 1.2.0 — 2026-09-16
+
+- Paletas continuas y discretas compartidas entre mapas SVG e interactivos.
+- Colores manuales por categoría, con orden de dominio opcional.
+- Colores configurables para el fondo y los territorios sin datos.
+- Contratos TypeScript, validación de colores y pruebas de paridad actualizados.
+
 # 1.1.1 — 2026-09-12
 
 - Corrige el enlace de BP_CODE cuando la geometría de barrios/parajes usa SECC.

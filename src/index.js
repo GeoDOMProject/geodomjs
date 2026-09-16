@@ -1,3 +1,7 @@
+import { PALETTES, CONTINUOUS_PALETTES, DISCRETE_PALETTES, normalizeHexColor, resolvePalette, paletteColor } from "./palettes.js";
+
+export { PALETTES, CONTINUOUS_PALETTES, DISCRETE_PALETTES, resolvePalette, paletteColor } from "./palettes.js";
+
 const BASE_DATA_URL = "https://geodom-worker.drdsdaniel.workers.dev/";
 const CACHE_DIR_NAME = "geodom";
 
@@ -60,25 +64,6 @@ const LEVEL_KEY_CANDIDATES = {
   bparajes: ["BP_CODE", "TOPONIMIA"],
   zones: ["ZONE_ID", "ZONE_CODE", "TOPONIMIA", "ZONE_NAME"]
 };
-
-const CATEGORICAL_COLORS = [
-  "#4e79a7",
-  "#f28e2b",
-  "#59a14f",
-  "#e15759",
-  "#76b7b2",
-  "#edc948",
-  "#b07aa1",
-  "#ff9da7",
-  "#9c755f",
-  "#bab0ab",
-  "#2f4b7c",
-  "#a05195",
-  "#d45087",
-  "#f95d6a",
-  "#ff7c43",
-  "#ffa600"
-];
 
 const NON_GEOGRAPHIC_NAMES = new Set([
   "otros",
@@ -1041,9 +1026,11 @@ export async function mapSvg(data, options = {}) {
     labelColor = "#202020",
     labelHalo = "#ffffff",
     legend = true,
+    palette = null,
     colors = null,
     domain = null,
     background = "#ffffff",
+    backgroundColor = null,
     stroke = "#ffffff",
     strokeWidth = 1.15,
     missing = "#d6d6d6"
@@ -1055,12 +1042,13 @@ export async function mapSvg(data, options = {}) {
     .map((feature) => feature.properties[joined.fillVar])
     .filter((value) => !isMissing(value) && String(value).trim() !== "");
   const numericFill = rawValues.length > 0 && rawValues.every((value) => Number.isFinite(Number(value)));
+  const paletteColors = resolvePalette(palette, { numeric: numericFill });
   const values = numericFill ? rawValues.map(Number) : [];
   const categories = numericFill ? [] : categoryDomain(rawValues, domain);
   const customColors = normalizeColorMap(colors);
   const categoryColors = new Map(categories.map((category, index) => [
     category,
-    customColors.get(category) || customColors.get(normalizeName(category)) || categoricalColor(index)
+    customColors.get(category) || customColors.get(normalizeName(category)) || paletteColors[index % paletteColors.length]
   ]));
   const min = values.length ? Math.min(...values) : null;
   const max = values.length ? Math.max(...values) : null;
@@ -1082,7 +1070,7 @@ export async function mapSvg(data, options = {}) {
   const paths = features.map((feature) => {
     const rawValue = feature.properties[joined.fillVar];
     const value = Number(rawValue);
-    const color = fillColor(rawValue, { numericFill, min, max, categoryColors, missing });
+    const color = fillColor(rawValue, { numericFill, min, max, categoryColors, paletteColors, missing });
     const label = feature.properties.TOPONIMIA ?? feature.properties.NAME ?? "";
     const titleText = `${label}${!isMissing(rawValue) && String(rawValue).trim() !== "" ? `: ${rawValue}` : ""}`;
     return `<path d="${featurePath(feature, project)}" fill="${color}" stroke="${stroke}" stroke-width="${strokeWidth}"><title>${escapeXml(titleText)}</title></path>`;
@@ -1110,11 +1098,11 @@ export async function mapSvg(data, options = {}) {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">
-  <rect width="100%" height="100%" fill="${background}"/>
+  <rect width="100%" height="100%" fill="${normalizeHexColor(backgroundColor || background, "El color de fondo")}"/>
   <g>${paths}</g>
   <g>${labelBlock}</g>
   ${titleBlock}
-  ${legend ? svgLegend({ numericFill, min, max, label: joined.fillVar, categories, categoryColors, width, height }) : ""}
+  ${legend ? svgLegend({ numericFill, min, max, label: joined.fillVar, categories, categoryColors, paletteColors, width, height }) : ""}
   ${captionBlock}
 </svg>
 `;
@@ -1257,38 +1245,13 @@ function featureBounds(features) {
   return bounds;
 }
 
-function viridisColor(t) {
-  const stops = [
-    [0.0, "#440154"],
-    [0.13, "#482878"],
-    [0.25, "#3e4989"],
-    [0.38, "#31688e"],
-    [0.5, "#26828e"],
-    [0.63, "#1f9e89"],
-    [0.75, "#35b779"],
-    [0.88, "#6ece58"],
-    [1.0, "#fde725"]
-  ];
-  const clamped = Math.max(0, Math.min(1, t));
-  const upperIndex = stops.findIndex(([stop]) => stop >= clamped);
-  if (upperIndex <= 0) return stops[0][1];
-  const [t1, c1] = stops[upperIndex - 1];
-  const [t2, c2] = stops[upperIndex];
-  return mixHex(c1, c2, (clamped - t1) / (t2 - t1));
-}
-
-function categoricalColor(index) {
-  if (index < CATEGORICAL_COLORS.length) return CATEGORICAL_COLORS[index];
-  return viridisColor((index % 13) / 12);
-}
-
 function normalizeColorMap(colors) {
   if (!colors) return new Map();
   const entries = colors instanceof Map ? colors.entries() : Object.entries(colors);
   return new Map(
     [...entries]
       .filter(([key, value]) => key !== undefined && key !== null && value !== undefined && value !== null)
-      .map(([key, value]) => [String(key), String(value)])
+      .map(([key, value]) => [String(key), normalizeHexColor(value, `El color de ${key}`)])
   );
 }
 
@@ -1311,46 +1274,35 @@ function categoryDomain(rawValues, domain) {
   return result;
 }
 
-function fillColor(value, { numericFill, min, max, categoryColors, missing }) {
-  if (isMissing(value) || String(value).trim() === "") return missing;
+function fillColor(value, { numericFill, min, max, categoryColors, paletteColors, missing }) {
+  if (isMissing(value) || String(value).trim() === "") return normalizeHexColor(missing, "El color sin datos");
   if (numericFill) {
     const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return missing;
+    if (!Number.isFinite(numeric)) return normalizeHexColor(missing, "El color sin datos");
     if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
-      return viridisColor((numeric - min) / (max - min));
+      return paletteColor(paletteColors, (numeric - min) / (max - min));
     }
-    return viridisColor(0.5);
+    return paletteColor(paletteColors, 0.5);
   }
-  return categoryColors.get(String(value)) || missing;
+  return categoryColors.get(String(value)) || normalizeHexColor(missing, "El color sin datos");
 }
 
-function mixHex(a, b, t) {
-  const ca = hexToRgb(a);
-  const cb = hexToRgb(b);
-  const rgb = ca.map((value, index) => Math.round(value + (cb[index] - value) * t));
-  return `#${rgb.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
-}
-
-function hexToRgb(hex) {
-  return [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16));
-}
-
-function svgLegend({ numericFill, min, max, label, categories, categoryColors, width, height }) {
+function svgLegend({ numericFill, min, max, label, categories, categoryColors, paletteColors, width, height }) {
   if (numericFill && Number.isFinite(min) && Number.isFinite(max)) {
-    return svgNumericLegend(min, max, label, width, height);
+    return svgNumericLegend(min, max, label, paletteColors, width, height);
   }
   if (categories.length) return svgCategoricalLegend(categories, categoryColors, label, width, height);
   return "";
 }
 
-function svgNumericLegend(min, max, label, width, height) {
+function svgNumericLegend(min, max, label, paletteColors, width, height) {
   const x = width - 384;
   const y = height - 164;
   const w = 250;
   const h = 18;
   const bands = Array.from({ length: 50 }, (_, index) => {
     const t = index / 49;
-    return `<rect x="${x + t * w}" y="${y}" width="${w / 49 + 1}" height="${h}" fill="${viridisColor(t)}"/>`;
+    return `<rect x="${x + t * w}" y="${y}" width="${w / 49 + 1}" height="${h}" fill="${paletteColor(paletteColors, t)}"/>`;
   }).join("");
 
   return `<g font-family="Arial, Helvetica, sans-serif">

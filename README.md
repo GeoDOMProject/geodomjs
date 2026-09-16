@@ -5,7 +5,7 @@ Paquete JavaScript para usar datos y utilidades de GeoDOM en Node.js y navegador
 ## Instalación
 
 ```bash
-npm install https://github.com/GeoDOMProject/geodomjs/releases/download/v1.1.1/geodom-core-1.1.1.tgz
+npm install https://github.com/GeoDOMProject/geodomjs/releases/download/v1.2.0/geodom-core-1.2.0.tgz
 ```
 
 ## Uso rápido
@@ -31,8 +31,22 @@ const svg = await gdMap(datos, {
   level: "provinces",
   name: "provincia",
   key: "TOPONIMIA",
-  fill: "poblacion"
+  fill: "poblacion",
+  palette: ["#f7fbff", "#08306b"],
+  backgroundColor: "#eef4f1"
 });
+```
+
+Para categorías, `colors` asigna un color exacto por valor:
+
+```js
+const colors = {
+  "DAVID COLLADO": "#1565c0",
+  "CAROLINA MEJÍA": "#ffffff",
+  "WELLINGTON ARNAUD": "#f1d7a3",
+  "LEONEL FERNÁNDEZ": "#2e7d32"
+};
+await gdMap(datos, { fill: "preferencia", colors, backgroundColor: "#526860" });
 ```
 
 También hay aliases estilo R/Python:
@@ -58,7 +72,7 @@ npm test
 
 MIT
 
-## Mapas interactivos (1.1.1)
+## Mapas interactivos (1.2.0)
 
 ```js
 import { gdMapInteractive, mountInteractiveMap } from '@geodom/core/interactive';

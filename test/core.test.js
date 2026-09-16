@@ -175,6 +175,30 @@ test("mapSvg supports manual categorical colors", async () => {
   assert.match(svg, />roja<\/text>/);
 });
 
+test("mapSvg applies custom continuous and discrete palettes to map and legend", async () => {
+  const continuous = await mapSvg([
+    { PROV: "01", value: 0 },
+    { PROV: "25", value: 10 }
+  ], {
+    level: "provinces", name: "PROV", key: "PROV", fill: "value",
+    palette: ["#000000", "#ffffff"], backgroundColor: "#123456"
+  });
+  assert.match(continuous, /<rect width="100%" height="100%" fill="#123456"\/>/);
+  assert.match(continuous, /fill="#000000"/);
+  assert.match(continuous, /fill="#ffffff"/);
+  assert.match(continuous, /fill="#7d7d7d"/);
+
+  const discrete = await mapSvg([
+    { PROV: "01", group: "A" },
+    { PROV: "25", group: "B" }
+  ], {
+    level: "provinces", name: "PROV", key: "PROV", fill: "group",
+    palette: ["#112233", "#ddeeff"]
+  });
+  assert.match(discrete, /fill="#112233"/);
+  assert.match(discrete, /fill="#ddeeff"/);
+});
+
 test("Node cache uses filesystem without touching localStorage", async () => {
   const cacheDir = await mkdtemp(join(tmpdir(), "geodom-cache-"));
   const previousCacheDir = process.env.GEODOM_CACHE_DIR;

@@ -51,7 +51,7 @@ export function mount(root, payload) {
   const reset = button('Ver todo', () => { provinceControl.select.value = ''; municipalityControl.select.value = ''; search.value = ''; updateMunicipalities(); render(); });
   controls.append(levelControl.label, provinceControl.label, municipalityControl.label, backgroundControl.label, labelControl.label, reset);
   const workspace = el('div', null, 'gd-workspace');
-  const canvas = el('div', null, 'gd-canvas'); canvas.setAttribute('aria-label', 'Mapa: usa las flechas para desplazarte y los botones para acercar o alejar');
+  const canvas = el('div', null, 'gd-canvas'); canvas.setAttribute('aria-label', 'Mapa: usa las flechas para desplazarte y los botones para acercar o alejar'); canvas.style.backgroundColor = options.backgroundColor || '#eef4f1';
   const sidebar = el('aside', null, 'gd-sidebar'); sidebar.setAttribute('aria-label', 'Buscar y consultar territorios');
   const searchLabel = el('label', 'Buscar territorio o código');
   const search = el('input'); search.type = 'search'; search.placeholder = 'Nombre o código'; searchLabel.append(search);
@@ -63,7 +63,7 @@ export function mount(root, payload) {
   workspace.append(canvas, sidebar);
   const footer = el('footer', null, 'gd-footer');
   if (options.caption) footer.append(el('p', options.caption));
-  footer.append(el('span', `GeoDOM ${payload.version || '1.1.0'} · Los límites sin mediciones se muestran como “Sin datos”.`));
+  footer.append(el('span', `GeoDOM ${payload.version || '1.2.0'} · Los límites sin mediciones se muestran como “Sin datos”.`));
   root.replaceChildren(header, controls, workspace, footer);
   const map = L.map(canvas, { preferCanvas: true, zoomControl: false, scrollWheelZoom: false, minZoom: 5, maxZoom: 18, zoomSnap: .25 });
   map.setView([18.8, -70.3], 7);
@@ -128,7 +128,7 @@ export function mount(root, payload) {
       for (const category of scale.domain) { const item = el('p'); const swatch = el('span', '', 'gd-swatch'); swatch.style.backgroundColor = scale.color(category); item.append(swatch, document.createTextNode(category)); categoryList.append(item); }
       legend.append(categoryList);
     }
-    const absent = el('p'); const swatch = el('span', '', 'gd-swatch'); swatch.style.backgroundColor = '#cbd5e1'; absent.append(swatch, document.createTextNode('Sin datos')); legend.append(absent);
+    const absent = el('p'); const swatch = el('span', '', 'gd-swatch'); swatch.style.backgroundColor = scale.missing; absent.append(swatch, document.createTextNode('Sin datos')); legend.append(absent);
     if (active.measured) legend.append(el('small', 'Escala común a toda la capa; se conserva al filtrar.'));
   }
   function render(fit = true) {
@@ -136,7 +136,7 @@ export function mount(root, payload) {
     provinceControl.label.hidden = !provinceLayer || ['regions', 'provinces'].includes(active.id);
     municipalityControl.label.hidden = !municipalityLayer || ['regions', 'provinces', 'municipalities'].includes(active.id);
     features = filterFeatures(active, { province: provinceControl.label.hidden ? '' : provinceControl.select.value, municipality: municipalityControl.label.hidden ? '' : municipalityControl.select.value, search: search.value });
-    const scale = colorScale(active);
+    const scale = colorScale(active, options);
     if (group) map.removeLayer(group);
     selected = null; selectedFeature = null; layersById = new Map();
     details.replaceChildren(el('p', 'Selecciona un territorio en el mapa o en los resultados para consultar sus datos.'));
