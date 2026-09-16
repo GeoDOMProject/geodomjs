@@ -199,6 +199,26 @@ test("mapSvg applies custom continuous and discrete palettes to map and legend",
   assert.match(discrete, /fill="#ddeeff"/);
 });
 
+test("mapSvg applies the horizontal editorial preset with counted categorical legend", async () => {
+  const svg = await mapSvg([
+    { PROV: "01", category: "Grupo A" },
+    { PROV: "25", category: "Grupo B" },
+    { PROV: "27", category: "Grupo A" }
+  ], {
+    level: "provinces", name: "PROV", key: "PROV", fill: "category",
+    title: "Distribución territorial", subtitle: "Resultados por provincia", caption: "Fuente: levantamiento",
+    stylePreset: "editorial",
+    colors: { "Grupo A": "#ffffff", "Grupo B": "#64b5f6" }
+  });
+
+  assert.match(svg, /width="1620" height="1080"/);
+  assert.match(svg, /fill="#526860"/);
+  assert.match(svg, /font-size="43"[^>]*fill="#ffffff">Distribución territorial<\/text>/);
+  assert.match(svg, />GRUPO A \(1\)<\/text>/);
+  assert.match(svg, />GRUPO B \(1\)<\/text>/);
+  assert.match(svg, /stroke="#263832" stroke-width="0.9"/);
+});
+
 test("Node cache uses filesystem without touching localStorage", async () => {
   const cacheDir = await mkdtemp(join(tmpdir(), "geodom-cache-"));
   const previousCacheDir = process.env.GEODOM_CACHE_DIR;

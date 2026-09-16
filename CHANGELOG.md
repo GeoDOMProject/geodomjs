@@ -1,3 +1,15 @@
+# 1.3.1 — 2026-09-16
+
+- El preset horizontal usa el identificador neutral `editorial`.
+- Se eliminan identificadores y ejemplos ligados a casos particulares.
+
+# 1.3.0 — 2026-09-16
+
+- Preset para mapas editoriales horizontales con fondo oscuro y tipografía clara.
+- Área de dibujo, posiciones y tamaños configurables para título, subtítulo, fuente y leyenda.
+- Conteos opcionales y mayúsculas en leyendas categóricas SVG e interactivas.
+- Tamaño de símbolos, separación y colores configurables en la leyenda.
+
 # 1.2.0 — 2026-09-16
 
 - Paletas continuas y discretas compartidas entre mapas SVG e interactivos.

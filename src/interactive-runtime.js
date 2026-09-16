@@ -63,7 +63,7 @@ export function mount(root, payload) {
   workspace.append(canvas, sidebar);
   const footer = el('footer', null, 'gd-footer');
   if (options.caption) footer.append(el('p', options.caption));
-  footer.append(el('span', `GeoDOM ${payload.version || '1.2.0'} · Los límites sin mediciones se muestran como “Sin datos”.`));
+  footer.append(el('span', `GeoDOM ${payload.version || '1.3.1'} · Los límites sin mediciones se muestran como “Sin datos”.`));
   root.replaceChildren(header, controls, workspace, footer);
   const map = L.map(canvas, { preferCanvas: true, zoomControl: false, scrollWheelZoom: false, minZoom: 5, maxZoom: 18, zoomSnap: .25 });
   map.setView([18.8, -70.3], 7);
@@ -125,7 +125,9 @@ export function mount(root, payload) {
       legend.append(gradient, el('p', `${valueText(scale.min)} — ${valueText(scale.max)}`));
     } else if (active.measured) {
       const categoryList = el('div', null, 'gd-categories');
-      for (const category of scale.domain) { const item = el('p'); const swatch = el('span', '', 'gd-swatch'); swatch.style.backgroundColor = scale.color(category); item.append(swatch, document.createTextNode(category)); categoryList.append(item); }
+      const counts = new Map();
+      for (const feature of active.geojson.features) { const value = feature.properties[active.fillVar]; if (value != null && String(value).trim() !== '') counts.set(String(value), (counts.get(String(value)) || 0) + 1); }
+      for (const category of scale.domain) { const item = el('p'); const swatch = el('span', '', 'gd-swatch'); swatch.style.backgroundColor = scale.color(category); const base = options.legendUppercase ? String(category).toUpperCase() : String(category); const label = options.legendCounts ? `${base} (${counts.get(String(category)) || 0})` : base; item.append(swatch, document.createTextNode(label)); categoryList.append(item); }
       legend.append(categoryList);
     }
     const absent = el('p'); const swatch = el('span', '', 'gd-swatch'); swatch.style.backgroundColor = scale.missing; absent.append(swatch, document.createTextNode('Sin datos')); legend.append(absent);

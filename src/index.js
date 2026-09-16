@@ -1009,7 +1009,43 @@ export async function addParentCols(data, { levels = null, level = null, name = 
   return result;
 }
 
+export const MAP_STYLE_PRESETS = Object.freeze({
+  standard: Object.freeze({}),
+  editorial: Object.freeze({
+    width: 1620,
+    height: 1080,
+    padding: 70,
+    backgroundColor: "#526860",
+    missing: "#b8c3bf",
+    stroke: "#263832",
+    strokeWidth: 0.9,
+    mapArea: Object.freeze({ x: 54, y: 168, width: 1030, height: 760 }),
+    titleX: 84,
+    titleY: 76,
+    titleSize: 43,
+    titleColor: "#ffffff",
+    subtitleX: 84,
+    subtitleY: 120,
+    subtitleSize: 18,
+    subtitleColor: "#f1f5f3",
+    captionX: 84,
+    captionY: 1030,
+    captionSize: 14,
+    captionColor: "#f1f5f3",
+    legendX: 1150,
+    legendY: 178,
+    legendTitleSize: 18,
+    legendTextSize: 17,
+    legendTextColor: "#ffffff",
+    legendRowHeight: 34,
+    legendSwatchSize: 19,
+    legendCounts: true,
+    legendUppercase: true
+  })
+});
+
 export async function mapSvg(data, options = {}) {
+  const resolvedOptions = resolveMapStyle(options);
   const {
     fill = null,
     level = null,
@@ -1033,8 +1069,30 @@ export async function mapSvg(data, options = {}) {
     backgroundColor = null,
     stroke = "#ffffff",
     strokeWidth = 1.15,
-    missing = "#d6d6d6"
-  } = options;
+    missing = "#d6d6d6",
+    mapArea = null,
+    titleX = padding,
+    titleY = 86,
+    titleSize = 35,
+    titleColor = "#1b1b1b",
+    subtitleX = padding,
+    subtitleY = 124,
+    subtitleSize = 21,
+    subtitleColor = "#555555",
+    captionX = padding,
+    captionY = height - 30,
+    captionSize = 18,
+    captionColor = "#666666",
+    legendX = null,
+    legendY = null,
+    legendTitleSize = 18,
+    legendTextSize = 16,
+    legendTextColor = "#555555",
+    legendRowHeight = 24,
+    legendSwatchSize = 16,
+    legendCounts = false,
+    legendUppercase = false
+  } = resolvedOptions;
 
   const joined = await mapData(data, { fill, level, name, key });
   const features = topologyToFeatures(joined.data);
@@ -1045,6 +1103,11 @@ export async function mapSvg(data, options = {}) {
   const paletteColors = resolvePalette(palette, { numeric: numericFill });
   const values = numericFill ? rawValues.map(Number) : [];
   const categories = numericFill ? [] : categoryDomain(rawValues, domain);
+  const categoryCounts = numericFill ? new Map() : rawValues.reduce((counts, value) => {
+    const category = String(value);
+    counts.set(category, (counts.get(category) || 0) + 1);
+    return counts;
+  }, new Map());
   const customColors = normalizeColorMap(colors);
   const categoryColors = new Map(categories.map((category, index) => [
     category,
@@ -1053,14 +1116,15 @@ export async function mapSvg(data, options = {}) {
   const min = values.length ? Math.min(...values) : null;
   const max = values.length ? Math.max(...values) : null;
   const bounds = featureBounds(features);
+  const drawingArea = normalizeMapArea(mapArea, { width, height, padding, hasHeading: Boolean(title || subtitle) });
   const scale = Math.min(
-    (width - padding * 2) / (bounds.maxX - bounds.minX),
-    (height - padding * 2) / (bounds.maxY - bounds.minY)
+    drawingArea.width / (bounds.maxX - bounds.minX),
+    drawingArea.height / (bounds.maxY - bounds.minY)
   );
   const drawnWidth = (bounds.maxX - bounds.minX) * scale;
   const drawnHeight = (bounds.maxY - bounds.minY) * scale;
-  const offsetX = (width - drawnWidth) / 2;
-  const offsetY = (height - drawnHeight) / 2 - (title || subtitle ? 14 : 0);
+  const offsetX = drawingArea.x + (drawingArea.width - drawnWidth) / 2;
+  const offsetY = drawingArea.y + (drawingArea.height - drawnHeight) / 2;
 
   const project = ([x, y]) => [
     offsetX + (x - bounds.minX) * scale,
@@ -1088,12 +1152,12 @@ export async function mapSvg(data, options = {}) {
   }).filter(Boolean).join("\n") : "";
 
   const titleBlock = [
-    title ? `<text x="${padding}" y="86" font-family="Arial, Helvetica, sans-serif" font-size="35" font-weight="700" fill="#1b1b1b">${escapeXml(title)}</text>` : "",
-    subtitle ? `<text x="${padding}" y="124" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#555555">${escapeXml(subtitle)}</text>` : ""
+    title ? `<text x="${titleX}" y="${titleY}" font-family="Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="700" fill="${normalizeHexColor(titleColor, "El color del titulo")}">${escapeXml(title)}</text>` : "",
+    subtitle ? `<text x="${subtitleX}" y="${subtitleY}" font-family="Arial, Helvetica, sans-serif" font-size="${subtitleSize}" fill="${normalizeHexColor(subtitleColor, "El color del subtitulo")}">${escapeXml(subtitle)}</text>` : ""
   ].filter(Boolean).join("\n");
 
   const captionBlock = caption
-    ? `<text x="${padding}" y="${height - 30}" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#666666">${escapeXml(caption)}</text>`
+    ? `<text x="${captionX}" y="${captionY}" font-family="Arial, Helvetica, sans-serif" font-size="${captionSize}" fill="${normalizeHexColor(captionColor, "El color de la fuente")}">${escapeXml(caption)}</text>`
     : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -1102,10 +1166,34 @@ export async function mapSvg(data, options = {}) {
   <g>${paths}</g>
   <g>${labelBlock}</g>
   ${titleBlock}
-  ${legend ? svgLegend({ numericFill, min, max, label: joined.fillVar, categories, categoryColors, paletteColors, width, height }) : ""}
+  ${legend ? svgLegend({ numericFill, min, max, label: joined.fillVar, categories, categoryColors, categoryCounts, paletteColors, width, height, legendX, legendY, legendTitleSize, legendTextSize, legendTextColor, legendRowHeight, legendSwatchSize, legendCounts, legendUppercase }) : ""}
   ${captionBlock}
 </svg>
 `;
+}
+
+function resolveMapStyle(options) {
+  const presetName = options.stylePreset || "standard";
+  const preset = MAP_STYLE_PRESETS[presetName];
+  if (!preset) throw new Error(`Estilo de mapa desconocido: ${presetName}.`);
+  return { ...preset, ...options, mapArea: options.mapArea ?? preset.mapArea ?? null };
+}
+
+function normalizeMapArea(mapArea, { width, height, padding, hasHeading }) {
+  if (!mapArea) {
+    const headingOffset = hasHeading ? 14 : 0;
+    return { x: padding, y: padding - headingOffset, width: width - padding * 2, height: height - padding * 2 };
+  }
+  const area = {
+    x: Number(mapArea.x),
+    y: Number(mapArea.y),
+    width: Number(mapArea.width),
+    height: Number(mapArea.height)
+  };
+  if (!Object.values(area).every(Number.isFinite) || area.width <= 0 || area.height <= 0) {
+    throw new Error("El area del mapa debe contener x, y, width y height validos.");
+  }
+  return area;
 }
 
 export const gdMap = mapSvg;
@@ -1287,17 +1375,17 @@ function fillColor(value, { numericFill, min, max, categoryColors, paletteColors
   return categoryColors.get(String(value)) || normalizeHexColor(missing, "El color sin datos");
 }
 
-function svgLegend({ numericFill, min, max, label, categories, categoryColors, paletteColors, width, height }) {
+function svgLegend({ numericFill, min, max, label, categories, categoryColors, categoryCounts, paletteColors, width, height, legendX, legendY, legendTitleSize, legendTextSize, legendTextColor, legendRowHeight, legendSwatchSize, legendCounts, legendUppercase }) {
   if (numericFill && Number.isFinite(min) && Number.isFinite(max)) {
-    return svgNumericLegend(min, max, label, paletteColors, width, height);
+    return svgNumericLegend(min, max, label, paletteColors, width, height, { legendX, legendY, legendTitleSize, legendTextSize, legendTextColor });
   }
-  if (categories.length) return svgCategoricalLegend(categories, categoryColors, label, width, height);
+  if (categories.length) return svgCategoricalLegend(categories, categoryColors, categoryCounts, label, width, height, { legendX, legendY, legendTitleSize, legendTextSize, legendTextColor, legendRowHeight, legendSwatchSize, legendCounts, legendUppercase });
   return "";
 }
 
-function svgNumericLegend(min, max, label, paletteColors, width, height) {
-  const x = width - 384;
-  const y = height - 164;
+function svgNumericLegend(min, max, label, paletteColors, width, height, style) {
+  const x = style.legendX ?? width - 384;
+  const y = style.legendY ?? height - 164;
   const w = 250;
   const h = 18;
   const bands = Array.from({ length: 50 }, (_, index) => {
@@ -1306,41 +1394,44 @@ function svgNumericLegend(min, max, label, paletteColors, width, height) {
   }).join("");
 
   return `<g font-family="Arial, Helvetica, sans-serif">
-    <text x="${x}" y="${y - 14}" font-size="18" font-weight="700" fill="#333333">${escapeXml(label)}</text>
+    <text x="${x}" y="${y - 14}" font-size="${style.legendTitleSize}" font-weight="700" fill="${normalizeHexColor(style.legendTextColor, "El color de la leyenda")}">${escapeXml(label)}</text>
     ${bands}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#777777" stroke-width="0.8"/>
-    <text x="${x}" y="${y + 47}" font-size="16" fill="#555555">${formatNumber(min)}</text>
-    <text x="${x + w}" y="${y + 47}" text-anchor="end" font-size="16" fill="#555555">${formatNumber(max)}</text>
+    <text x="${x}" y="${y + 47}" font-size="${style.legendTextSize}" fill="${normalizeHexColor(style.legendTextColor, "El color de la leyenda")}">${formatNumber(min)}</text>
+    <text x="${x + w}" y="${y + 47}" text-anchor="end" font-size="${style.legendTextSize}" fill="${normalizeHexColor(style.legendTextColor, "El color de la leyenda")}">${formatNumber(max)}</text>
   </g>`;
 }
 
-function svgCategoricalLegend(categories, colorMap, label, width, height) {
+function svgCategoricalLegend(categories, colorMap, categoryCounts, label, width, height, style) {
   const maxItems = 12;
   const shown = categories.slice(0, maxItems);
   const hidden = categories.length - shown.length;
-  const rowHeight = 24;
-  const x = width - 330;
-  const y = Math.max(96, height - 76 - rowHeight * (shown.length + (hidden > 0 ? 1 : 0)));
+  const rowHeight = style.legendRowHeight;
+  const x = style.legendX ?? width - 330;
+  const y = style.legendY ?? Math.max(96, height - 76 - rowHeight * (shown.length + (hidden > 0 ? 1 : 0)));
+  const color = normalizeHexColor(style.legendTextColor, "El color de la leyenda");
   const rows = shown.map((category, index) => {
     const rowY = y + 28 + index * rowHeight;
+    const baseLabel = style.legendUppercase ? String(category).toUpperCase() : String(category);
+    const countedLabel = style.legendCounts ? `${baseLabel} (${categoryCounts.get(category) || 0})` : baseLabel;
     return `<g>
-      <rect x="${x}" y="${rowY - 13}" width="16" height="16" rx="2" fill="${colorMap.get(category)}"/>
-      <text x="${x + 24}" y="${rowY}" font-size="16" fill="#555555">${escapeXml(truncateLegendLabel(category))}</text>
+      <rect x="${x}" y="${rowY - style.legendSwatchSize + 3}" width="${style.legendSwatchSize}" height="${style.legendSwatchSize}" rx="2" fill="${colorMap.get(category)}" stroke="#263832" stroke-width="0.6"/>
+      <text x="${x + style.legendSwatchSize + 10}" y="${rowY}" font-size="${style.legendTextSize}" fill="${color}">${escapeXml(truncateLegendLabel(countedLabel, 34))}</text>
     </g>`;
   }).join("");
   const more = hidden > 0
-    ? `<text x="${x}" y="${y + 28 + shown.length * rowHeight}" font-size="15" fill="#666666">+${hidden} categorias mas</text>`
+    ? `<text x="${x}" y="${y + 28 + shown.length * rowHeight}" font-size="${Math.max(12, style.legendTextSize - 1)}" fill="${color}">+${hidden} categorias mas</text>`
     : "";
   return `<g font-family="Arial, Helvetica, sans-serif">
-    <text x="${x}" y="${y}" font-size="18" font-weight="700" fill="#333333">${escapeXml(label)}</text>
+    <text x="${x}" y="${y}" font-size="${style.legendTitleSize}" font-weight="700" fill="${color}">${escapeXml(label)}</text>
     ${rows}
     ${more}
   </g>`;
 }
 
-function truncateLegendLabel(value) {
+function truncateLegendLabel(value, maxLength = 24) {
   const text = String(value);
-  return text.length > 24 ? `${text.slice(0, 21)}...` : text;
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
 }
 
 function formatNumber(value) {

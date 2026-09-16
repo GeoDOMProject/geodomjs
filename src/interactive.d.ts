@@ -5,6 +5,7 @@ export interface InteractiveOptions {
   labels?: boolean | 'name' | 'value' | 'both'; background?: 'none' | 'osm';
   palette?: string | string[] | null; colors?: Record<string, string> | Map<string, string> | null;
   domain?: Iterable<string> | null; missing?: string; backgroundColor?: string;
+  stylePreset?: 'standard' | 'editorial'; legendCounts?: boolean; legendUppercase?: boolean;
   context?: boolean; crs?: string;
 }
 export interface InteractiveLayer { id: string; fillVar: string | null; measured: boolean; geojson: { type: 'FeatureCollection'; features: Array<Record<string, any>> }; }

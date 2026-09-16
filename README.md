@@ -5,7 +5,7 @@ Paquete JavaScript para usar datos y utilidades de GeoDOM en Node.js y navegador
 ## Instalación
 
 ```bash
-npm install https://github.com/GeoDOMProject/geodomjs/releases/download/v1.2.0/geodom-core-1.2.0.tgz
+npm install https://github.com/GeoDOMProject/geodomjs/releases/download/v1.3.1/geodom-core-1.3.1.tgz
 ```
 
 ## Uso rápido
@@ -41,13 +41,29 @@ Para categorías, `colors` asigna un color exacto por valor:
 
 ```js
 const colors = {
-  "DAVID COLLADO": "#1565c0",
-  "CAROLINA MEJÍA": "#ffffff",
-  "WELLINGTON ARNAUD": "#f1d7a3",
-  "LEONEL FERNÁNDEZ": "#2e7d32"
+  "Grupo A": "#1565c0",
+  "Grupo B": "#ffffff",
+  "Grupo C": "#f1d7a3"
 };
-await gdMap(datos, { fill: "preferencia", colors, backgroundColor: "#526860" });
+await gdMap(datos, { fill: "categoria", colors, backgroundColor: "#526860" });
 ```
+
+El preset editorial aplica un lienzo horizontal,
+jerarquía tipográfica, leyenda lateral con conteos y bordes oscuros:
+
+```js
+await gdMap(datos, {
+  fill: "categoria",
+  colors,
+  stylePreset: "editorial",
+  title: "Distribución territorial",
+  subtitle: "Resultados por provincia",
+  caption: "Fuente: levantamiento"
+});
+```
+
+Los tamaños de título, subtítulo, fuente y leyenda, el área del mapa, los bordes
+y las posiciones editoriales también se pueden ajustar de manera individual.
 
 También hay aliases estilo R/Python:
 
@@ -72,7 +88,7 @@ npm test
 
 MIT
 
-## Mapas interactivos (1.2.0)
+## Mapas interactivos
 
 ```js
 import { gdMapInteractive, mountInteractiveMap } from '@geodom/core/interactive';

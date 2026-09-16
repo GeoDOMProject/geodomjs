@@ -26,6 +26,7 @@ export const CACHE_DIR_NAME: string;
 export const PALETTES: Readonly<Record<string, readonly string[]>>;
 export const CONTINUOUS_PALETTES: readonly string[];
 export const DISCRETE_PALETTES: readonly string[];
+export const MAP_STYLE_PRESETS: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 export function resolvePalette(palette?: string | string[] | null, options?: { numeric?: boolean }): string[];
 export function paletteColor(colors: string[], position: number): string;
 
@@ -54,7 +55,7 @@ export function detectFill(data: Row[] | unknown, options?: { exclude?: string[]
 export function detectColumnType(column: Iterable<unknown>, columnName?: string): Promise<DetectResult>;
 export function analyzeColumns(data: Row[] | unknown, options?: { threshold?: number }): Promise<Row[]>;
 export function mapData(data: Row[] | unknown, options?: { fill?: string | null; level?: string | null; name?: string | null; key?: string | null }): Promise<{ data: unknown; fillVar: string; geoLevel: string; join: DetectResult }>;
-export function mapSvg(data: Row[] | unknown, options?: { fill?: string | null; level?: string | null; name?: string | null; key?: string | null; width?: number; height?: number; padding?: number; title?: string | null; subtitle?: string | null; caption?: string | null; labels?: boolean | "name" | "value" | "both"; labelSize?: number; labelColor?: string; labelHalo?: string; legend?: boolean; palette?: string | string[] | null; colors?: Record<string, string> | Map<string, string> | null; domain?: Iterable<string> | null; background?: string; backgroundColor?: string | null; stroke?: string; strokeWidth?: number; missing?: string }): Promise<string>;
+export function mapSvg(data: Row[] | unknown, options?: { fill?: string | null; level?: string | null; name?: string | null; key?: string | null; stylePreset?: "standard" | "editorial"; width?: number; height?: number; padding?: number; mapArea?: { x: number; y: number; width: number; height: number } | null; title?: string | null; subtitle?: string | null; caption?: string | null; titleX?: number; titleY?: number; titleSize?: number; titleColor?: string; subtitleX?: number; subtitleY?: number; subtitleSize?: number; subtitleColor?: string; captionX?: number; captionY?: number; captionSize?: number; captionColor?: string; labels?: boolean | "name" | "value" | "both"; labelSize?: number; labelColor?: string; labelHalo?: string; legend?: boolean; legendX?: number | null; legendY?: number | null; legendTitleSize?: number; legendTextSize?: number; legendTextColor?: string; legendRowHeight?: number; legendSwatchSize?: number; legendCounts?: boolean; legendUppercase?: boolean; palette?: string | string[] | null; colors?: Record<string, string> | Map<string, string> | null; domain?: Iterable<string> | null; background?: string; backgroundColor?: string | null; stroke?: string; strokeWidth?: number; missing?: string }): Promise<string>;
 export function addParentCols(data: Row[] | unknown, options?: { levels?: string | string[] | null; level?: string | null; name?: string | null; key?: string | null; clean?: boolean; tolerance?: number; onError?: CleanErrorMode }): Promise<Row[]>;
 export const gdMap: typeof mapSvg;
 
