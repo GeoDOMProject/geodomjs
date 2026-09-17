@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { interactiveData, interactiveDocument, toGeoJSON } from '../src/interactive.js';
-import { filterFeatures, colorScale, territoryCode, scriptJson } from '../src/interactive-model.js';
+import { filterFeatures, colorScale, territoryCode, scriptJson, persistentLabelsEnabled, PERMANENT_LABEL_LIMIT } from '../src/interactive-model.js';
 
 const cache = await mkdtemp(join(tmpdir(), 'geodom-interactive-test-'));
 process.env.GEODOM_CACHE_DIR = cache;
@@ -70,6 +70,13 @@ test('search is accent insensitive and parent filters preserve complete municipa
   assert.equal(filterFeatures(layer,{province:'02',municipality:'0101'}).length,0);
   assert.equal(territoryCode({PROV:'01',MUN:'02',DM:'03',SEC:'04',BP:'005'},'bparajes'),'01020304005');
   assert.equal(territoryCode({CODREG:'04'},'regions'),'04');
+});
+test('permanent labels are limited to readable map densities', () => {
+  assert.equal(PERMANENT_LABEL_LIMIT, 40);
+  assert.equal(persistentLabelsEnabled('name', 40), true);
+  assert.equal(persistentLabelsEnabled('both', 41), false);
+  assert.equal(persistentLabelsEnabled('', 12), false);
+  assert.equal(persistentLabelsEnabled('name', 0), false);
 });
 test('zero remains measured; missing and categorical values use separate legend semantics', () => {
   const layer={fillVar:'value',geojson:collection([feature({value:0}),feature({value:10}),feature({value:null}),feature({value:''})])};

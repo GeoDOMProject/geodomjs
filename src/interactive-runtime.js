@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import { LEVEL_LABELS, territoryCode, parentCode, filterFeatures, colorScale, missing } from './interactive-model.js';
+import { LEVEL_LABELS, PERMANENT_LABEL_LIMIT, territoryCode, parentCode, filterFeatures, colorScale, missing, persistentLabelsEnabled } from './interactive-model.js';
 
 function el(tag, text, className) {
   const node = document.createElement(tag);
@@ -8,7 +8,7 @@ function el(tag, text, className) {
   return node;
 }
 function button(text, action) {
-  const node = el('button', text); node.type = 'button'; node.addEventListener('click', action); return node;
+  const node = el('button', text); node.type = 'button'; if (action) node.addEventListener('click', action); return node;
 }
 function selectControl(labelText, options) {
   const label = el('label', labelText), select = el('select');
@@ -48,7 +48,7 @@ export function mount(root, payload) {
   const municipalityControl = selectControl('Municipio', [['', 'Todos los municipios']]);
   const labelControl = selectControl('Etiquetas', [['', 'Al señalar'], ['name', 'Nombre'], ['value', 'Valor'], ['both', 'Nombre y valor']]);
   labelControl.select.value = options.labels === true ? 'name' : options.labels || '';
-  const reset = button('Ver todo', () => { provinceControl.select.value = ''; municipalityControl.select.value = ''; search.value = ''; updateMunicipalities(); render(); });
+  const reset = button('Ver todo'); reset.setAttribute('aria-pressed', 'false');
   controls.append(levelControl.label, provinceControl.label, municipalityControl.label, backgroundControl.label, labelControl.label, reset);
   const workspace = el('div', null, 'gd-workspace');
   const canvas = el('div', null, 'gd-canvas'); canvas.setAttribute('aria-label', 'Mapa: usa las flechas para desplazarte y los botones para acercar o alejar'); canvas.style.backgroundColor = options.backgroundColor || '#eef4f1';
@@ -63,7 +63,7 @@ export function mount(root, payload) {
   workspace.append(canvas, sidebar);
   const footer = el('footer', null, 'gd-footer');
   if (options.caption) footer.append(el('p', options.caption));
-  footer.append(el('span', `GeoDOM ${payload.version || '1.3.1'} · Los límites sin mediciones se muestran como “Sin datos”.`));
+  footer.append(el('span', `GeoDOM ${payload.version || '1.3.2'} · Los límites sin mediciones se muestran como “Sin datos”.`));
   root.replaceChildren(header, controls, workspace, footer);
   const map = L.map(canvas, { preferCanvas: true, zoomControl: false, scrollWheelZoom: false, minZoom: 5, maxZoom: 18, zoomSnap: .25 });
   map.setView([18.8, -70.3], 7);
@@ -73,13 +73,18 @@ export function mount(root, payload) {
   // Wheel zoom starts only after focusing the map, so scrolling the page stays usable.
   canvas.addEventListener('focus', () => map.scrollWheelZoom.enable());
   canvas.addEventListener('blur', () => map.scrollWheelZoom.disable());
-  let tiles = null, group = null, selected = null, selectedFeature = null, features = [], layersById = new Map();
+  let tiles = null, group = null, selected = null, selectedFeature = null, features = [], layersById = new Map(), returnView = null;
   const provinceLayer = payload.layers.find(layer => layer.id === 'provinces');
   const municipalityLayer = payload.layers.find(layer => layer.id === 'municipalities');
   for (const feature of [...(provinceLayer?.geojson.features || [])].sort((a,b) => String(a.properties.TOPONIMIA).localeCompare(String(b.properties.TOPONIMIA)))) {
     const option = el('option', feature.properties.TOPONIMIA); option.value = territoryCode(feature.properties, 'provinces'); provinceControl.select.append(option);
   }
   function current() { return payload.layers.find(layer => layer.id === levelControl.select.value); }
+  function clearReturnView() {
+    returnView = null;
+    reset.textContent = 'Ver todo';
+    reset.setAttribute('aria-pressed', 'false');
+  }
   function updateMunicipalities() {
     const previous = municipalityControl.select.value;
     municipalityControl.select.replaceChildren(new Option('Todos los municipios', ''));
@@ -148,7 +153,7 @@ export function mount(root, payload) {
         layersById.set(feature, layer);
         const p = feature.properties, code = territoryCode(p, active.id), name = p.TOPONIMIA || p.NAME || 'Territorio';
         const tooltip = el('div'); tooltip.append(el('strong', name), el('div', code), el('div', active.measured ? `${active.fillVar}: ${valueText(p[active.fillVar])}` : 'Sin datos'));
-        const permanent = Boolean(labelControl.select.value) && features.length <= 300;
+        const permanent = persistentLabelsEnabled(labelControl.select.value, features.length);
         if (permanent) {
           tooltip.replaceChildren(document.createTextNode(labelControl.select.value === 'value' ? valueText(p[active.fillVar]) : labelControl.select.value === 'both' ? `${name}: ${valueText(p[active.fillVar])}` : name));
         }
@@ -157,7 +162,7 @@ export function mount(root, payload) {
       }
     }).addTo(map);
     const matched = features.filter(f => active.measured && !missing(f.properties[active.fillVar])).length;
-    status.textContent = `${features.length.toLocaleString('es-DO')} territorios · ${matched.toLocaleString('es-DO')} con datos.${labelControl.select.value && features.length > 300 ? ' Las etiquetas aparecen al señalar; filtra a 300 territorios o menos para mostrarlas todas.' : ''}`;
+    status.textContent = `${features.length.toLocaleString('es-DO')} territorios · ${matched.toLocaleString('es-DO')} con datos.${labelControl.select.value && !persistentLabelsEnabled(labelControl.select.value, features.length) ? ` Para evitar solapamientos, las etiquetas aparecen al señalar; filtra hasta ${PERMANENT_LABEL_LIMIT} territorios para fijarlas.` : ''}`;
     if (fit && group.getBounds().isValid()) map.fitBounds(group.getBounds(), { padding: [20,20], maxZoom: 13, animate: false });
     renderLegend(active, scale);
     results.replaceChildren(el('h2', 'Territorios'));
@@ -169,13 +174,50 @@ export function mount(root, payload) {
     if (features.length > 30) results.append(el('small', 'Se muestran los primeros 30 resultados. Escribe un nombre o código para precisar la búsqueda.'));
     if (!features.length) results.append(el('p', 'No hay territorios que coincidan. Borra la búsqueda o pulsa “Ver todo”.'));
   }
-  levelControl.select.addEventListener('change', () => { search.value = ''; provinceControl.select.value = ''; municipalityControl.select.value = ''; updateMunicipalities(); render(); });
-  provinceControl.select.addEventListener('change', () => { municipalityControl.select.value = ''; search.value = ''; updateMunicipalities(); render(); });
-  municipalityControl.select.addEventListener('change', () => { search.value = ''; render(); });
+  reset.addEventListener('click', () => {
+    if (returnView) {
+      const view = returnView;
+      clearReturnView();
+      levelControl.select.value = view.level;
+      provinceControl.select.value = view.province;
+      updateMunicipalities();
+      municipalityControl.select.value = view.municipality;
+      search.value = view.search;
+      render(false);
+      map.setView(view.center, view.zoom, { animate: false });
+      if (view.selectedCode) {
+        const feature = features.find(item => territoryCode(item.properties, current().id) === view.selectedCode);
+        if (feature) showDetails(feature, layersById.get(feature));
+      }
+      sidebar.scrollTop = view.sidebarScrollTop;
+      return;
+    }
+    const center = map.getCenter();
+    returnView = {
+      level: levelControl.select.value,
+      province: provinceControl.select.value,
+      municipality: municipalityControl.select.value,
+      search: search.value,
+      center: [center.lat, center.lng],
+      zoom: map.getZoom(),
+      selectedCode: selectedFeature ? territoryCode(selectedFeature.properties, current().id) : '',
+      sidebarScrollTop: sidebar.scrollTop
+    };
+    reset.textContent = 'Volver a la vista anterior';
+    reset.setAttribute('aria-pressed', 'true');
+    provinceControl.select.value = '';
+    municipalityControl.select.value = '';
+    search.value = '';
+    updateMunicipalities();
+    render();
+  });
+  levelControl.select.addEventListener('change', () => { clearReturnView(); search.value = ''; provinceControl.select.value = ''; municipalityControl.select.value = ''; updateMunicipalities(); render(); });
+  provinceControl.select.addEventListener('change', () => { clearReturnView(); municipalityControl.select.value = ''; search.value = ''; updateMunicipalities(); render(); });
+  municipalityControl.select.addEventListener('change', () => { clearReturnView(); search.value = ''; render(); });
   backgroundControl.select.addEventListener('change', background);
   labelControl.select.addEventListener('change', () => render(false));
   let searchTimer;
-  search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => render(), 180); });
+  search.addEventListener('input', () => { clearReturnView(); clearTimeout(searchTimer); searchTimer = setTimeout(() => render(), 180); });
   backgroundControl.select.value = options.background === 'osm' ? 'osm' : 'none';
   updateMunicipalities(); background(); render();
   const observer = new ResizeObserver(() => map.invalidateSize({ pan: false })); observer.observe(canvas);

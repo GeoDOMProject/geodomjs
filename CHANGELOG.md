@@ -1,3 +1,9 @@
+# 1.3.2 — 2026-09-17
+
+- Las etiquetas permanentes solo se muestran cuando la vista tiene hasta 40 territorios; en vistas densas se mantienen disponibles al señalar y el visor explica cómo fijarlas.
+- Las etiquetas permanentes conservan los nombres en una línea y dejan de partirlos carácter por carácter.
+- `Ver todo` conserva filtros, selección, zoom, posición y desplazamiento lateral para poder volver a la vista anterior.
+
 # 1.3.1 — 2026-09-16
 
 - El preset horizontal usa el identificador neutral `editorial`.

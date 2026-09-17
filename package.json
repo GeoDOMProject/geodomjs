@@ -1,6 +1,6 @@
 {
   "name": "@geodom/core",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Acceso a datos geoespaciales estandarizados de República Dominicana para JavaScript.",
   "type": "module",
   "main": "./src/index.js",

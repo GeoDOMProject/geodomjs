@@ -3,6 +3,7 @@ import { normalizeHexColor, resolvePalette, paletteColor } from './palettes.js';
 /** Pure model shared by the browser renderer and contract tests. */
 export const LEVEL_LABELS = { regions: 'Regiones', provinces: 'Provincias', municipalities: 'Municipios', dm: 'Distritos municipales', sections: 'Secciones', bparajes: 'Barrios y parajes' };
 export const LEVEL_KEYS = { regions: 'REG_CODE', provinces: 'PROV_CODE', municipalities: 'MUN_CODE', dm: 'DM_CODE', sections: 'SEC_CODE', bparajes: 'BP_CODE' };
+export const PERMANENT_LABEL_LIMIT = 40;
 export const missing = value => value == null || String(value).trim() === '' || (typeof value === 'number' && !Number.isFinite(value));
 export const normalize = value => String(value ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase().trim();
 export function territoryCode(properties, level) {
@@ -24,6 +25,9 @@ export function filterFeatures(layer, { province = '', municipality = '', search
       (!municipality || parentCode(p, 'municipalities') === municipality) &&
       (!query || normalize(`${p.TOPONIMIA ?? p.NAME ?? ''} ${territoryCode(p, layer.id)}`).includes(query));
   });
+}
+export function persistentLabelsEnabled(mode, featureCount) {
+  return Boolean(mode) && featureCount > 0 && featureCount <= PERMANENT_LABEL_LIMIT;
 }
 export function colorScale(layer, options = {}) {
   const values = layer.geojson.features.map(f => f.properties[layer.fillVar]).filter(v => !missing(v));
